@@ -36,3 +36,25 @@ export async function getWallets(): Promise<Wallet[]> {
   const wallets = JSON.parse(content);
   return wallets.map((x: Wallet) => new Wallet(x.privKey, x.pubKey));
 }
+
+export function isHexValid(str: string) {
+   const legend = '0123456789abcdef';
+
+   for (let i = 0; i < str.length; i++) {
+      if (!legend.includes(str[i])) {
+         return false;
+      }
+   }
+
+   return true;
+}
+
+export function validateAddress(address: string) {
+  if (address.length !== 64) {
+    throw new Error("invalid receiver address length");
+
+  } else if (!isHexValid(address)) {
+    throw new Error("invalid receiver address format, only hex");
+
+  }
+}

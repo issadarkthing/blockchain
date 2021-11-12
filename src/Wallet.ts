@@ -1,6 +1,7 @@
 import crypto from "crypto";
-import { sha256 } from "ethereumjs-util";
+import { isValidChecksumAddress, sha256 } from "ethereumjs-util";
 import { Block, SIGN_ALGO } from "./BlockChain";
+import { isHexValid, validateAddress } from "./utils";
 
 export class Wallet {
   address: string;
@@ -47,8 +48,11 @@ export class Wallet {
     })
   }
 
-  createTx(senderAddress: string, amount: number) {
-    const block = new Block(this.address, senderAddress, amount);
+  createTx(receiverAddress: string, amount: number) {
+
+    validateAddress(receiverAddress);
+
+    const block = new Block(this.address, receiverAddress, amount);
     const signature = this.sign(block);
     return [block, signature] as const;
   }

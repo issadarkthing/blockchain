@@ -5,7 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsc -w",
-    "start": "node -r source-map-support/register ./dist/index.js"
+    "start": "node -r source-map-support/register ./dist/index.js",
+    "repl": "rlwrap node -r source-map-support/register ./dist/Repl.js"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.4.1",
