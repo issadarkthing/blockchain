@@ -33,7 +33,7 @@ export class BlockChain {
     this.blocks = [new Block("", this.mainWallet.address, 1_000_000)];
   }
 
-  verifySignature(block: Block, publicKey: string, signature: Buffer) {
+  private verifySignature(block: Block, publicKey: string, signature: Buffer) {
     const verify = crypto.createVerify(SIGN_ALGO).update(JSON.stringify(block));
     return verify.verify(publicKey, signature);
   }
@@ -44,6 +44,13 @@ export class BlockChain {
 
     if (!isValid) {
       throw new Error(`invalid signature for ${block}`);
+    }
+
+    const amount = block.amount;
+    const senderBalance = this.findBalance(block.fromAddress);
+
+    if (senderBalance < amount) {
+      throw new Error(`insufficient balance`);
     }
 
     const prevBlock = this.blocks[this.blocks.length - 1];
