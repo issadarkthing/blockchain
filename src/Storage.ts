@@ -46,6 +46,11 @@ export class Storage {
     );
   }
 
+  size() {
+    const stmt = `SELECT COUNT(*) AS size FROM BlockChain`;
+    return this.db.prepare(stmt).get().size;
+  }
+
   getAllBlocks() {
     
     const stmt = `

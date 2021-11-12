@@ -37,20 +37,25 @@ export class BlockChain {
 
   constructor(mainWallet: Wallet, options?: BlockChainOptions) {
     this.mainWallet = mainWallet;
-
     const genesisBlock = new Block("", this.mainWallet.address, 1_000_000);
 
     if (options?.persistent) {
       this.persistent = options.persistent;
       this.storage = new Storage();
-      this.storage.insertBlock(genesisBlock);
+      this.length === 0 && this.storage.insertBlock(genesisBlock);
       this.blocks = this.storage.getAllBlocks();
+    } else {
+      this.blocks = [genesisBlock];
     }
   }
 
   private verifySignature(block: Block, publicKey: string, signature: Buffer) {
     const verify = crypto.createVerify(SIGN_ALGO).update(JSON.stringify(block));
     return verify.verify(publicKey, signature);
+  }
+
+  get length(): number {
+    return this.storage?.size() || this.blocks.length;
   }
 
   addBlock(block: Block, senderPublicKey: string, signature: Buffer) {
