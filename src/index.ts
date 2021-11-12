@@ -1,4 +1,4 @@
-import crypto, { generateKeyPairSync } from "crypto";
+import crypto, { generateKeyPair } from "crypto";
 import { sha256 } from "ethereumjs-util";
 
 const SIGN_ALGO = "RSA-SHA512";
@@ -14,21 +14,38 @@ class Wallet {
     this.pubKey = pubKey;
   }
 
-  static generate() {
+  static async generate() {
 
-    const keyPair = generateKeyPairSync("rsa", {
-      modulusLength: 4096,
-      publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-      },
-      privateKeyEncoding: {
-        type: 'pkcs8',
-        format: 'pem',
+    return new Promise<Wallet>((resolve, reject) => {
+
+      const keyPairOptions = {
+        modulusLength: 4096,
+        publicKeyEncoding: {
+          type: 'spki',
+          format: 'pem'
+        },
+        privateKeyEncoding: {
+          type: 'pkcs8',
+          format: 'pem',
+        }
       }
-    });
 
-    return new Wallet(keyPair.privateKey, keyPair.publicKey);
+      generateKeyPair("rsa", keyPairOptions, (err, pub, priv) => {
+
+        if (err) {
+          reject(err);
+          return
+        }
+
+        const wallet = new Wallet(
+          priv.toString(), 
+          pub.toString(),
+        );
+
+        resolve(wallet);
+      });
+
+    })
   }
 
   createTx(senderAddress: string, amount: number) {
@@ -123,21 +140,22 @@ class BlockChain {
   }
 }
 
-function main() {
+async function main() {
 
-  const main = Wallet.generate();
+  const main = await Wallet.generate();
   const blockChain = new BlockChain(main);
 
-  const wallet1 = Wallet.generate();
+  const wallet1 = await Wallet.generate();
 
   for (let i = 0; i < 5; i++) {
     const amount = Math.floor(Math.random() * 100) + 10;
     const [block, signature] = main.createTx(wallet1.address, amount);
+    console.log(block);
     blockChain.addBlock(block, main.pubKey, signature);
   }
 
 
-  console.log(blockChain);
+  // console.log(blockChain);
   console.log(`${wallet1.address}'s balance:`, blockChain.findBalance(wallet1.address));
   console.log(`${main.address}'s balance:`, blockChain.findBalance(main.address));
   console.log("Verified", blockChain.verify());
