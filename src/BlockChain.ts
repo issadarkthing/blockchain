@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { Wallet } from "./Wallet";
+import { Storage } from "./Storage";
 
 export const SIGN_ALGO = "RSA-SHA512";
 
@@ -24,13 +25,27 @@ export class Block {
   }
 }
 
-export class BlockChain {
-  blocks: Block[];
-  mainWallet: Wallet;
+interface BlockChainOptions {
+  persistent?: true;
+}
 
-  constructor(mainWallet: Wallet) {
+export class BlockChain {
+  blocks: Block[] = [];
+  mainWallet: Wallet;
+  storage?: Storage;
+  persistent = false;
+
+  constructor(mainWallet: Wallet, options?: BlockChainOptions) {
     this.mainWallet = mainWallet;
-    this.blocks = [new Block("", this.mainWallet.address, 1_000_000)];
+
+    const genesisBlock = new Block("", this.mainWallet.address, 1_000_000);
+
+    if (options?.persistent) {
+      this.persistent = options.persistent;
+      this.storage = new Storage();
+      this.storage.insertBlock(genesisBlock);
+      this.blocks = this.storage.getAllBlocks();
+    }
   }
 
   private verifySignature(block: Block, publicKey: string, signature: Buffer) {
@@ -56,6 +71,7 @@ export class BlockChain {
     const prevBlock = this.blocks[this.blocks.length - 1];
     block.prevHash = prevBlock.hash();
     this.blocks.push(block);
+    this.storage?.insertBlock(block);
   }
 
   findBalance(address: string) {
