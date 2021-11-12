@@ -3,6 +3,7 @@ import { promisify } from "util";
 import { Wallet } from "./Wallet";
 
 const readFile = promisify(fs.readFile);
+const WALLETS = "./wallets.json";
 
 export async function generateWallets(count: number) {
   const wallets = [];
@@ -14,11 +15,12 @@ export async function generateWallets(count: number) {
     wallets.push(wallet);
   }
 
-  fs.writeFileSync("./wallets.json", JSON.stringify(wallets));
+  fs.writeFileSync(WALLETS, JSON.stringify(wallets));
   console.log(`Generated ${count} wallets`);
 }
 
 export async function getWallets() {
-  const wallets = JSON.parse((await readFile("./wallets.json", { encoding: "utf-8" })).toString());
+  const content = (await readFile(WALLETS, { encoding: "utf-8" })).toString();
+  const wallets = JSON.parse(content);
   return wallets.map((x: Wallet) => new Wallet(x.privKey, x.pubKey));
 }
