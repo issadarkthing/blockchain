@@ -1,32 +1,45 @@
-import crypto from "crypto";
-import { mnemonicToSeedSync, generateMnemonic } from "bip39";
-import hdkey from "hdkey";
-import { privateToPublic, publicToAddress, toChecksumAddress } from "ethereumjs-util";
+import crypto, { generateKeyPairSync } from "crypto";
+import { sha256 } from "ethereumjs-util";
+
+const SIGN_ALGO = "RSA-SHA512";
 
 class Wallet {
   address: string;
-  privKey: Buffer;
-  pubKey: Buffer;
-  root: hdkey;
-  passphrase: string;
+  privKey: string;
+  pubKey: string;
 
-  constructor(passphrase?: string) {
+  constructor(privKey: string, pubKey: string) {
+    this.address = sha256(Buffer.from(pubKey)).toString("hex");
+    this.privKey = privKey;
+    this.pubKey = pubKey;
+  }
 
-    if (!passphrase) {
-      passphrase = generateMnemonic();
-    }
+  static generate() {
 
-    this.passphrase = passphrase;
+    const keyPair = generateKeyPairSync("rsa", {
+      modulusLength: 4096,
+      publicKeyEncoding: {
+        type: 'spki',
+        format: 'pem'
+      },
+      privateKeyEncoding: {
+        type: 'pkcs8',
+        format: 'pem',
+      }
+    });
 
-    const seed = mnemonicToSeedSync(passphrase);
-    this.root = hdkey.fromMasterSeed(seed);
+    return new Wallet(keyPair.privateKey, keyPair.publicKey);
+  }
 
-    const path = "m/44'/60'/0'/0/0";
-    const addrNode = this.root.derive(path)
-    this.privKey = addrNode.privateKey;
-    this.pubKey = privateToPublic(this.privKey)
-    const addr = publicToAddress(this.pubKey).toString("hex");
-    this.address = toChecksumAddress("0x" + addr);
+  createTx(senderAddress: string, amount: number) {
+    const block = new Block(this.address, senderAddress, amount);
+    const signature = this.sign(block);
+    return [block, signature] as const;
+  }
+
+  sign(block: Block) {
+    const sign = crypto.createSign(SIGN_ALGO).update(JSON.stringify(block));
+    return sign.sign(this.privKey);
   }
 }
 
@@ -43,7 +56,6 @@ class Block {
   }
 
   hash() {
-
     const str = JSON.stringify(this);
     const hash = crypto.createHash("md5")
     hash.update(str)
@@ -61,7 +73,19 @@ class BlockChain {
     this.blocks = [new Block("", this.mainWallet.address, 1_000_000)];
   }
 
-  addBlock(block: Block) {
+  verifySignature(block: Block, publicKey: string, signature: Buffer) {
+    const verify = crypto.createVerify(SIGN_ALGO).update(JSON.stringify(block));
+    return verify.verify(publicKey, signature);
+  }
+
+  addBlock(block: Block, senderPublicKey: string, signature: Buffer) {
+
+    const isValid = this.verifySignature(block, senderPublicKey, signature);
+
+    if (!isValid) {
+      throw new Error(`invalid signature for ${block}`);
+    }
+
     const prevBlock = this.blocks[this.blocks.length - 1];
     block.prevHash = prevBlock.hash();
     this.blocks.push(block);
@@ -101,14 +125,15 @@ class BlockChain {
 
 function main() {
 
-  const main = new Wallet("main account");
+  const main = Wallet.generate();
   const blockChain = new BlockChain(main);
 
-  const wallet1 = new Wallet("sample");
+  const wallet1 = Wallet.generate();
 
   for (let i = 0; i < 5; i++) {
     const amount = Math.floor(Math.random() * 100) + 10;
-    blockChain.addBlock(new Block(main.address, wallet1.address, amount));
+    const [block, signature] = main.createTx(wallet1.address, amount);
+    blockChain.addBlock(block, main.pubKey, signature);
   }
 
 
