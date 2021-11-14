@@ -129,10 +129,14 @@ class Repl {
 
     }
 
-    const wallet = this.wallets.at(parseInt(address));
+    const index = parseInt(address);
 
-    if (wallet) {
-      address = wallet.address;
+    if (index) {
+      const wallet = this.wallets.at(index);
+
+      if (wallet) {
+        address = wallet.address;
+      }
     }
 
     this.validateAmount(amount);
