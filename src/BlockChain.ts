@@ -1,82 +1,176 @@
 import crypto from "crypto";
 import { Wallet } from "./Wallet";
 import { Storage } from "./Storage";
+import { Transaction } from "./Transaction";
+import { sha256 } from "./utils";
 
 export const SIGN_ALGO = "RSA-SHA512";
+let miningDifficulty = 2;
 
 export class Block {
   prevHash?: string;
-  timestamp: Date;
+  timestamp = new Date();
+  nonce = 0;
 
-  constructor(
-    public fromAddress: string, 
-    public toAddress: string, 
-    public amount: number,
-  ) {
-    this.timestamp = new Date();
+  constructor(public transactions: Transaction[]) {}
+
+  mine(cb?: (hash: string) => void) {
+    while (!this.validHash()) {
+      cb && cb(this.hash());
+      this.nonce++;
+    }
+  }
+
+  validHash() {
+    const prefix = this.hash().slice(0, miningDifficulty);
+    const validPrefix = Array(miningDifficulty).fill("0").join("");
+
+    return prefix === validPrefix;
   }
 
   hash() {
-    const str = JSON.stringify(this);
-    const hash = crypto.createHash("md5")
-    hash.update(str)
+    const copy = {...this} as any;
 
-    return hash.digest("hex");
+    copy.transactions = this.transactions.map((x: Transaction) => x.hash());
+
+    return sha256(JSON.stringify(copy));
   }
 }
 
 interface BlockChainOptions {
-  persistent?: true;
+  difficulty?: number;
+  maxPending?: number;
+  maxTx?: number;
 }
 
 export class BlockChain {
   blocks: Block[] = [];
+  pendingTransactions: Transaction[] = [];
   mainWallet: Wallet;
-  storage?: Storage;
-  persistent = false;
+  private storage?: Storage;
+  private maxPending = 5;
+  private maxTx = 5;
 
   constructor(mainWallet: Wallet, options?: BlockChainOptions) {
     this.mainWallet = mainWallet;
-    const genesisBlock = new Block("", this.mainWallet.address, 1_000_000);
 
-    if (options?.persistent) {
-      this.persistent = options.persistent;
-      this.storage = new Storage();
-      this.length === 0 && this.storage.insertBlock(genesisBlock);
-      this.blocks = this.storage.getAllBlocks();
-    } else {
-      this.blocks = [genesisBlock];
+    if (options?.difficulty) {
+
+      if (options.difficulty < 1) {
+        throw new Error("mining difficulty cannot be lower than 1");
+      }
+
+      miningDifficulty = options.difficulty;
+
+    } else if (options?.maxPending) {
+
+      if (options.maxPending < 1) {
+        throw new Error("max pending cannot be lower than 1");
+      }
+
+      this.maxPending = options.maxPending;
+
+    } else if (options?.maxTx) {
+
+      if (options.maxTx < 1) {
+        throw new Error("max transactions cannot be lower than 1");
+      }
+
+      this.maxTx = options.maxTx;
+    }
+
+    this.storage = new Storage();
+    this.blocks = this.storage.getAllBlocks();
+
+    if (this.blocks.length === 0) {
+
+      const tx = new Transaction({
+        fromAddress: "genesis",
+        toAddress: mainWallet.address,
+        amount: 1_000_000,
+        senderPublicKey: "genesis",
+        signature: Buffer.from(""),
+      });
+
+      this.addTransaction(tx);
+      this.flush();
     }
   }
 
-  private verifySignature(block: Block, publicKey: string, signature: Buffer) {
-    const verify = crypto.createVerify(SIGN_ALGO).update(JSON.stringify(block));
-    return verify.verify(publicKey, signature);
+  private verifySignature(tx: Transaction) {
+    const verify = crypto.createVerify(SIGN_ALGO).update(tx.hash());
+    return verify.verify(tx.senderPublicKey, tx.signature!);
   }
 
   get length(): number {
     return this.storage?.size() || this.blocks.length;
   }
 
-  addBlock(block: Block, senderPublicKey: string, signature: Buffer) {
+  get lastBlock() {
+    return this.blocks[this.blocks.length - 1];
+  }
 
-    const isValid = this.verifySignature(block, senderPublicKey, signature);
+  private addBlock(block: Block) {
+
+    block.prevHash = this.lastBlock?.hash();
+
+    block.mine(hash => console.log(hash));
+
+    const isValid = block.validHash();
 
     if (!isValid) {
-      throw new Error(`invalid signature for ${block}`);
+      throw new Error("block is invalid");
     }
 
-    const amount = block.amount;
-    const senderBalance = this.findBalance(block.fromAddress);
+    this.storage?.insertBlock(block);
+    this.blocks.push(block);
+  }
+
+  private verifyTransaction(tx: Transaction) {
+
+    const isValid = this.verifySignature(tx);
+
+    if (!isValid) {
+      throw new Error(`invalid signature for ${tx}`);
+    }
+
+    const amount = tx.amount;
+    const senderBalance = this.findBalance(tx.fromAddress);
 
     if (senderBalance < amount) {
       throw new Error(`insufficient balance`);
     }
+  }
 
-    const prevBlock = this.blocks[this.blocks.length - 1];
-    block.prevHash = prevBlock.hash();
-    this.blocks.push(block);
-    this.storage?.insertBlock(block);
+  flush() {
+    while (this.pendingTransactions.length !== 0) {
+      this.handleTx();
+    }
+  }
+
+  handleTx() {
+    const block = new Block(this.pendingTransactions.slice(0, this.maxTx));
+
+    for (let i = 0; i < this.maxTx; i++) {
+      this.pendingTransactions.shift();
+    }
+
+    this.addBlock(block);
+  }
+
+  addTransaction(tx: Transaction) {
+
+    this.blocks.length > 0 && this.verifyTransaction(tx);
+
+    if (this.pendingTransactions.length >= this.maxPending) {
+
+      this.handleTx();
+
+    } else {
+
+      this.pendingTransactions.push(tx);
+    }
+
   }
 
   findBalance(address: string) {
@@ -84,10 +178,14 @@ export class BlockChain {
     let balance = 0;
 
     for (const block of this.blocks) {
-      if (block.toAddress === address) {
-        balance += block.amount;
-      } else if (block.fromAddress === address) {
-        balance -= block.amount;
+
+      for (const tx of block.transactions) {
+
+        if (tx.toAddress === address) {
+          balance += tx.amount;
+        } else if (tx.fromAddress === address) {
+          balance -= tx.amount;
+        }
       }
     }
 

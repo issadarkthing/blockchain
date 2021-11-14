@@ -1,6 +1,7 @@
 import fs from "fs";
 import { promisify } from "util";
 import { Wallet } from "./Wallet";
+import { createHash } from "crypto";
 
 const readFile = promisify(fs.readFile);
 const WALLETS = "./wallets.json";
@@ -23,6 +24,11 @@ export async function generateWallets(count: number) {
 
   fs.writeFileSync(WALLETS, JSON.stringify(wallets));
   console.log(`Generated ${count} wallets`);
+}
+
+export function sha256(str: string) {
+  const hash = createHash("sha256").update(str);
+  return hash.digest().toString("hex");
 }
 
 // select random element from an array

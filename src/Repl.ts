@@ -25,13 +25,17 @@ class Repl {
     this.handlers.set("tx", (args) => this.transfer(args));
     this.handlers.set("balance", (args) => this.balance(args));
     this.handlers.set("bal", (args) => this.balance(args));
+    this.handlers.set("blocks", () => this.blocks());
+    this.handlers.set("flush", () => this.blockChain.flush());
+    this.handlers.set("verify", () => this.blockChain.verify());
+    this.handlers.set("block", (args) => this.block(args));
   }
 
   run() {
     getWallets().then(wallets => {
       this.wallets = wallets;
       this.currentWallet = wallets[0];
-      this.blockChain = new BlockChain(this.currentWallet, { persistent: true });
+      this.blockChain = new BlockChain(this.currentWallet);
       this.print(`loaded ${wallets.length} wallet(s)`);
       this.main();
     })
@@ -72,6 +76,29 @@ class Repl {
     }).join("\n");
   }
 
+  private block(args: string[]) {
+
+    const [index, arg2] = args;
+
+    if (!index) {
+      throw new Error("please specify block index");
+    }
+
+    const block = this.blockChain.blocks.at(parseInt(index));
+
+    if (!block) throw new Error("no block found");
+
+    if (arg2 === "hash") {
+      return block.hash();
+
+    } else if (arg2) {
+      return (block as any)[arg2];
+
+    }
+
+    return block;
+  }
+
   private balance(args: string[]) {
     const [address] = args;
 
@@ -82,6 +109,10 @@ class Repl {
     }
 
     return this.blockChain.findBalance(this.currentWallet.address);
+  }
+
+  private blocks() {
+    return this.blockChain.blocks;
   }
 
   private transfer(args: string[]) {
@@ -98,8 +129,8 @@ class Repl {
 
     this.validateAmount(amount);
 
-    const [block, signature] = this.currentWallet.createTx(address, amount);
-    this.blockChain.addBlock(block, this.currentWallet.pubKey, signature);
+    const tx = this.currentWallet.createTx(address, amount);
+    this.blockChain.addTransaction(tx);
     return `Successfully transferred ${amount} to ${address}`;
   }
 

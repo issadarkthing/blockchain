@@ -11,10 +11,8 @@ export async function distribute(
   for (let i = 0; i < round; i++) {
     const amount = random(1, 100);
     const wallet = pick(wallets);
-    const [block, signature] = main.createTx(wallet.address, amount);
-    blockChain.addBlock(block, main.pubKey, signature);
-    console.log(block);
-    console.log(i + 1);
+    const tx = main.createTx(wallet.address, amount);
+    blockChain.addTransaction(tx);
   }
 
   for (const wallet of wallets) {
@@ -22,4 +20,5 @@ export async function distribute(
     console.log(`${wallet.address}'s balance:`, balance);
   }
 
+  blockChain.flush();
 }
