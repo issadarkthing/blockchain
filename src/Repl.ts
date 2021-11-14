@@ -70,9 +70,9 @@ class Repl {
   }
 
   private getWallets() {
-    return this.wallets.map(x => {
+    return this.wallets.map((x, i) => {
       const balance = this.blockChain.findBalance(x.address);
-      return `${x.address} ${balance}`
+      return `${i}. ${x.address} ${balance}`
     }).join("\n");
   }
 
@@ -116,22 +116,30 @@ class Repl {
   }
 
   private transfer(args: string[]) {
-    const [amountStr, address] = args;
+    let [amountStr, address] = args;
     const amount = Number(amountStr);
 
     if (!amountStr) {
       throw new Error("please specify amount");
 
     } else if (!address) {
-      throw new Error("please specify address to be sent to");
+      throw new Error(
+        "please specify address or wallet index to be sent to"
+      );
 
+    }
+
+    const wallet = this.wallets.at(parseInt(address));
+
+    if (wallet) {
+      address = wallet.address;
     }
 
     this.validateAmount(amount);
 
     const tx = this.currentWallet.createTx(address, amount);
     this.blockChain.addTransaction(tx);
-    return `Successfully transferred ${amount} to ${address}`;
+    return `${amount} tokens will be transferred to ${address}`;
   }
 
   private async main() {
