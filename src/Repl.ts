@@ -26,7 +26,7 @@ class Repl {
     this.handlers.set("balance", (args) => this.balance(args));
     this.handlers.set("bal", (args) => this.balance(args));
     this.handlers.set("blocks", () => this.blocks());
-    this.handlers.set("flush", () => this.blockChain.flush());
+    this.handlers.set("flush", () => this.flush());
     this.handlers.set("verify", () => this.blockChain.verify());
     this.handlers.set("block", (args) => this.block(args));
   }
@@ -74,6 +74,11 @@ class Repl {
       const balance = this.blockChain.findBalance(x.address);
       return `${i}. ${x.address} ${balance}`
     }).join("\n");
+  }
+
+  private flush() {
+    this.blockChain.flush();
+    return "\n1 block successfully mined";
   }
 
   private block(args: string[]) {

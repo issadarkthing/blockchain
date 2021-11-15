@@ -5,7 +5,7 @@ import { Transaction } from "./Transaction";
 import { sha256 } from "./utils";
 
 export const SIGN_ALGO = "RSA-SHA512";
-let miningDifficulty = 2;
+let miningDifficulty = 4;
 
 export class Block {
   prevHash?: string;
@@ -16,8 +16,8 @@ export class Block {
 
   mine(cb?: (hash: string) => void) {
     while (!this.validHash()) {
-      cb && cb(this.hash());
       this.nonce++;
+      cb && cb(this.hash());
     }
   }
 
@@ -114,7 +114,17 @@ export class BlockChain {
 
     block.prevHash = this.lastBlock?.hash();
 
-    block.mine(hash => console.log(hash));
+    let i = 0;
+
+    block.mine(hash => { 
+      if (i !== 0) {
+        process.stdout.clearLine(0);
+        process.stdout.cursorTo(0);
+      }
+
+      process.stdout.write(hash); 
+      i++;
+    });
 
     const isValid = block.validHash();
 
