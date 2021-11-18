@@ -18,6 +18,7 @@ class Repl {
   currentWallet!: Wallet;
 
   constructor() {
+    this.addCommand("transactions", "show all transactions", ["tx"], this.transactions);
     this.addCommand("transfer", "transfer coin", ["tf"], this.transfer);
     this.addCommand("length", "blockchain length", ["len"], this.length);
     this.addCommand("wallets", "list of pre-generated wallets", ["ls"], this.getWallets);
@@ -101,6 +102,17 @@ class Repl {
       .map(x => `${[x.name, ...x.aliases].join(", ")}\t- ${x.description}`);
 
     return commands.join("\n");
+  }
+
+  private transactions(args: string[]) {
+    const transactions = this.blockChain.blocks.flatMap(x => x.transactions);
+    const arg1 = args[0];
+
+    if (arg1) {
+      return transactions.at(parseInt(arg1));
+    }
+
+    return transactions;
   }
 
   private getWallets() {
