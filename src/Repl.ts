@@ -4,31 +4,57 @@ import { getWallets, validateAddress } from "./utils";
 import { Wallet } from "./Wallet";
 import { BlockChain } from "./BlockChain";
 
+type Command = { name: string, description: string, aliases: string[], exec: Handler };
 type Handler = (args: string[]) => unknown;
 
 const rl = readline.createInterface({ input, output });
 
 class Repl {
   private prompt = "-> ";
-  handlers: Map<string, Handler>;
+  commands: Map<string, Command> = new Map();
+  aliases: Map<string, string> = new Map();
   wallets: Wallet[] = [];
   blockChain!: BlockChain;
   currentWallet!: Wallet;
 
   constructor() {
-    this.handlers = new Map<string, Handler>();
-    this.handlers.set("length", () => this.length());
-    this.handlers.set("len", () => this.length());
-    this.handlers.set("wallets", () => this.getWallets());
-    this.handlers.set("ls", () => this.getWallets());
-    this.handlers.set("transfer", (args) => this.transfer(args));
-    this.handlers.set("tx", (args) => this.transfer(args));
-    this.handlers.set("balance", (args) => this.balance(args));
-    this.handlers.set("bal", (args) => this.balance(args));
-    this.handlers.set("blocks", () => this.blocks());
-    this.handlers.set("flush", () => this.flush());
-    this.handlers.set("verify", () => this.blockChain.verify());
-    this.handlers.set("block", (args) => this.block(args));
+    this.addCommand("transfer", "transfer coin", ["tf"], this.transfer);
+    this.addCommand("length", "blockchain length", ["len"], this.length);
+    this.addCommand("wallets", "list of pre-generated wallets", ["ls"], this.getWallets);
+    this.addCommand("balance", "show balance of a wallet", ["bal"], this.balance);
+    this.addCommand("blocks", "show all blocks", [], this.blocks);
+    this.addCommand("flush", "force mine new block", [], this.flush);
+    this.addCommand("verify", "verify blockchain", [], () => this.blockChain.verify());
+    this.addCommand("block", "show a block", [], this.block);
+    this.addCommand("help", "show help", ["h"], this.help);
+  }
+
+  private addCommand(name: string, description: string, aliases: string[], cb: Handler) {
+
+    const command = { 
+      name, 
+      description, 
+      aliases, 
+      exec: (args: string[]) => cb.call(this, args),
+    };
+
+    this.commands.set(name, command);
+
+    for (const alias of aliases) {
+      this.aliases.set(alias, name);
+    }
+  }
+
+  private getCommand(cmdName: string) {
+
+    const cmd = this.commands.get(cmdName);
+    if (cmd) return cmd;
+
+    const alias = this.aliases.get(cmdName);
+    if (!alias) return;
+
+    const realCmd = this.commands.get(alias);
+    return realCmd;
   }
 
   run() {
@@ -37,6 +63,7 @@ class Repl {
       this.currentWallet = wallets[0];
       this.blockChain = new BlockChain(this.currentWallet);
       this.print(`loaded ${wallets.length} wallet(s)`);
+      this.print(`Use help command to show available commands`);
       this.main();
     })
   }
@@ -67,6 +94,13 @@ class Repl {
 
   private length() {
     return this.blockChain.length;
+  }
+
+  private help() {
+    const commands = [...this.commands.values()]
+      .map(x => `${[x.name, ...x.aliases].join(", ")}\t- ${x.description}`);
+
+    return commands.join("\n");
   }
 
   private getWallets() {
@@ -157,13 +191,13 @@ class Repl {
 
       const expr = await this.getInput();
       const [cmd, ...args] = expr.split(/\s+/);
-      const command = this.handlers.get(cmd);
+      const command = this.getCommand(cmd);
 
       if (command) {
 
         try {
 
-          const result = command(args);
+          const result = command.exec(args);
           this.print(result);
 
         } catch (err) {
