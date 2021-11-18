@@ -1,8 +1,8 @@
 import crypto from "crypto";
-import { isValidChecksumAddress, sha256 } from "ethereumjs-util";
-import { Block, SIGN_ALGO } from "./BlockChain";
+import { sha256 } from "ethereumjs-util";
+import { SIGN_ALGO } from "./BlockChain";
 import { Transaction } from "./Transaction";
-import { isHexValid, validateAddress } from "./utils";
+import { validateAddress } from "./utils";
 
 export class Wallet {
   address: string;
