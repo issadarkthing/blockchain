@@ -27,6 +27,7 @@ class Repl {
     this.addCommand("flush", "force mine new block", [], this.flush);
     this.addCommand("verify", "verify blockchain", [], () => this.blockChain.verify());
     this.addCommand("block", "show a block", [], this.block);
+    this.addCommand("difficulty", "change mining difficulty", [], this.difficulty);
     this.addCommand("help", "show help", ["h"], this.help);
   }
 
@@ -95,6 +96,21 @@ class Repl {
 
   private length() {
     return this.blockChain.length;
+  }
+
+  private difficulty(args: string[]) {
+
+    const level = parseInt(args[0]);
+
+    if (Number.isNaN(level)) {
+      throw new Error("invalid number");
+    } else if (level < 0) {
+      throw new Error("difficulty level cannot be less than zero");
+    }
+
+    this.blockChain.difficulty = level;
+
+    return level;
   }
 
   private help() {

@@ -152,6 +152,10 @@ export class BlockChain {
     }
   }
 
+  set difficulty(level: number) {
+    miningDifficulty = level;
+  }
+
   flush() {
     while (this.pendingTransactions.length !== 0) {
       this.handleTx();
