@@ -3,11 +3,11 @@
 
 ## Blockchain Implementation
 
-This is a blockchain implementation that uses *proof of work* as it's consensus.
-The p2p network has not been implemented yet and only work in local machine but
-it already able to make transactions and blockchain verification. This
-blockchain implementation also comes with repl, in which you can interact with
-blockchain directly and inspect the internal values.
+This is a blockchain implementation that uses *proof of work* as it's consensus
+algorithm.  The p2p network has not been implemented yet and only work in local
+machine but it already able to make transactions and blockchain verification.
+This blockchain implementation also comes with repl, in which you can interact
+with blockchain directly and inspect the internal values.
 
 
 ## Wallets
@@ -22,6 +22,9 @@ This blockchain implementation has built-in repl, just run `yarn repl` to open
 it.
 
 ## Getting started
+- `yarn install`
+- `yarn build`
+- `yarn start`
 
 You can start messing around with the blockchain system by modifying
 `./index.ts`, there are also helper functions in `./functions.ts`. To execute
