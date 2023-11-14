@@ -1,7 +1,7 @@
 
 
 
-## Blockchain Implementation
+## Blockchain Reimplementation
 
 This is a blockchain implementation that uses *proof of work* as it's consensus
 algorithm.  The p2p network has not been implemented yet and only work in local
